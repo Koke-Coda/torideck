@@ -93,18 +93,54 @@ CREATE TABLE card_sets (
     card_id    BIGINT NOT NULL REFERENCES cards (id) ON DELETE CASCADE,
     set_number TEXT NOT NULL,
     set_name   TEXT NOT NULL,
-    rarities   JSONB,
+    rarity     TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (set_number, rarity)
+);
+
+COMMENT ON TABLE  card_sets            IS '収録商品・レアリティ情報（1レコード = 1型番 × 1レアリティ）';
+COMMENT ON COLUMN card_sets.set_number IS '型番（例: ROTD-JP001）';
+COMMENT ON COLUMN card_sets.set_name   IS '商品名（例: RISE OF THE DUELIST）';
+COMMENT ON COLUMN card_sets.rarity     IS 'レアリティ（例: SR, UR, CR, ESR）';
+
+CREATE INDEX idx_card_sets_card_id    ON card_sets (card_id);
+CREATE INDEX idx_card_sets_set_number ON card_sets (set_number);
+
+-- ----------------------------------------------------------
+-- USERS: ユーザ情報
+-- ----------------------------------------------------------
+CREATE TABLE users (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name       TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-COMMENT ON TABLE  card_sets            IS '収録商品・レアリティ情報';
-COMMENT ON COLUMN card_sets.set_number IS '型番（例: ROTD-JP001）';
-COMMENT ON COLUMN card_sets.set_name   IS '商品名（例: RISE OF THE DUELIST）';
-COMMENT ON COLUMN card_sets.rarities   IS 'レアリティ一覧 例: ["SR","UR"]';
+COMMENT ON TABLE  users      IS 'ユーザ情報';
+COMMENT ON COLUMN users.name IS 'ユーザ名';
 
-CREATE INDEX idx_card_sets_card_id    ON card_sets (card_id);
-CREATE INDEX idx_card_sets_set_number ON card_sets (set_number);
+-- ----------------------------------------------------------
+-- USER_CARD_COUNTS: ユーザの所持枚数（セット × レアリティ × イラスト単位）
+-- ----------------------------------------------------------
+CREATE TABLE user_card_counts (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id     UUID    NOT NULL REFERENCES users     (id) ON DELETE CASCADE,
+    card_set_id BIGINT  NOT NULL REFERENCES card_sets (id) ON DELETE CASCADE,
+    image_idx   TEXT    NOT NULL,
+    count       INTEGER NOT NULL DEFAULT 0 CHECK (count >= 0),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, card_set_id, image_idx)
+);
+
+COMMENT ON TABLE  user_card_counts             IS 'ユーザの所持枚数（card_sets × イラスト違い単位）';
+COMMENT ON COLUMN user_card_counts.card_set_id IS 'card_sets.id（型番＋レアリティを特定）';
+COMMENT ON COLUMN user_card_counts.image_idx   IS 'イラスト違いインデックス（card_images.idx と対応）';
+COMMENT ON COLUMN user_card_counts.count       IS '所持枚数（0以上）';
+
+CREATE INDEX idx_user_card_counts_user_id     ON user_card_counts (user_id);
+CREATE INDEX idx_user_card_counts_card_set_id ON user_card_counts (card_set_id);
 
 -- ----------------------------------------------------------
 -- updated_at 自動更新トリガー
@@ -129,10 +165,20 @@ CREATE TRIGGER trg_card_sets_updated_at
     BEFORE UPDATE ON card_sets
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+CREATE TRIGGER trg_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_user_card_counts_updated_at
+    BEFORE UPDATE ON user_card_counts
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- ----------------------------------------------------------
 -- Row Level Security（必要に応じて有効化）
 -- ----------------------------------------------------------
--- ALTER TABLE cards       ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE monsters    ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE card_images ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE card_sets   ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE cards             ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE monsters          ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE card_images       ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE card_sets         ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE users             ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE user_card_counts  ENABLE ROW LEVEL SECURITY;

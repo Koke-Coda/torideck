@@ -45,12 +45,31 @@ erDiagram
         bigint card_id FK "cards.id"
         text set_number "型番（ROTD-JP001 等）"
         text set_name "商品名"
-        jsonb rarities "レアリティ一覧（SR, UR, CR, ESR 等）"
+        text rarity "レアリティ（SR, UR, CR, ESR 等）"
         timestamptz created_at
         timestamptz updated_at
     }
 ​
+    USERS {
+        uuid id PK "gen_random_uuid()"
+        text name
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    USER_CARD_COUNTS {
+        bigint id PK "GENERATED ALWAYS AS IDENTITY"
+        uuid user_id FK "users.id"
+        bigint card_set_id FK "card_sets.id（型番＋レアリティを特定）"
+        text image_idx "card_images.idx と対応"
+        integer count "所持枚数（0以上）"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
     CARDS ||--o| MONSTERS : "モンスターの場合のみ"
     CARDS ||--o{ CARD_IMAGES : "has"
     CARDS ||--o{ CARD_SETS : "has"
+    USERS ||--o{ USER_CARD_COUNTS : "owns"
+    CARD_SETS ||--o{ USER_CARD_COUNTS : "counted by"
 ```
