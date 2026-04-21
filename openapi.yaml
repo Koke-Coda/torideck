@@ -1,0 +1,537 @@
+openapi: 3.0.3
+info:
+  title: Torideck API
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:8080
+    description: ローカル開発環境
+
+tags:
+  - name: users
+    description: ユーザ管理
+  - name: card-list
+    description: カード検索・一覧画面
+  - name: my-collection
+    description: マイコレクション画面
+
+paths:
+  # ============================================================
+  # ユーザ管理
+  # ============================================================
+  /users:
+    post:
+      tags: [users]
+      summary: ユーザ登録
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /users/{userId}:
+    get:
+      tags: [users]
+      summary: ユーザ情報取得
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================
+  # カード検索・一覧画面
+  # ============================================================
+  /screens/card-list:
+    get:
+      tags: [card-list]
+      summary: カード一覧取得
+      description: |
+        カード一覧を返す。`userId` を渡すと各カードの所持枚数合計も含む。
+      parameters:
+        - $ref: '#/components/parameters/userId'
+        - name: card_type
+          in: query
+          schema:
+            type: string
+            enum: [monster, spell, trap]
+        - name: attribute
+          in: query
+          description: 属性（モンスターのみ有効）
+          schema:
+            type: string
+            example: 闇
+        - name: kind
+          in: query
+          description: 種族（モンスターのみ有効）
+          schema:
+            type: string
+            example: ドラゴン族
+        - name: keyword
+          in: query
+          description: カード名部分一致
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardListResponse'
+
+  /screens/card-list/{cardId}:
+    get:
+      tags: [card-list]
+      summary: カード詳細取得（ダイアログ用）
+      description: |
+        カード詳細・画像一覧・収録セット（レアリティ）・ユーザ所持枚数（セット/イラスト単位）を返す。
+      parameters:
+        - $ref: '#/components/parameters/cardId'
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /screens/card-list/counts:
+    put:
+      tags: [card-list]
+      summary: カード所持枚数一括更新
+      description: |
+        複数カード・複数セット × イラストの組み合わせを一括で更新する。
+        変更があった分だけ送ればよい（差分更新）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardCountBulkUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardCountBulkUpdateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # ============================================================
+  # マイコレクション画面
+  # ============================================================
+  /screens/my-collection:
+    get:
+      tags: [my-collection]
+      summary: 所持カード一覧取得
+      description: |
+        ユーザが所持しているカード（枚数1以上）の一覧を返す。
+        絞り込みパラメータは `/screens/card-list` と共通。
+      parameters:
+        - $ref: '#/components/parameters/userId'
+        - name: card_type
+          in: query
+          schema:
+            type: string
+            enum: [monster, spell, trap]
+        - name: attribute
+          in: query
+          schema:
+            type: string
+        - name: kind
+          in: query
+          schema:
+            type: string
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyCollectionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+# ============================================================
+# Components
+# ============================================================
+components:
+  parameters:
+    userId:
+      name: userId
+      in: query
+      description: ユーザID
+      required: false
+      schema:
+        type: string
+        format: uuid
+
+    cardId:
+      name: cardId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+
+  responses:
+    BadRequest:
+      description: リクエスト不正
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: リソースが存在しない
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    # ----------------------------------------------------------
+    # ユーザ
+    # ----------------------------------------------------------
+    UserCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: デュエリスト太郎
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ----------------------------------------------------------
+    # カード（共通部品）
+    # ----------------------------------------------------------
+    CardImage:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        idx:
+          type: string
+          description: 画像インデックス（イラスト違い識別用）
+        image_url:
+          type: string
+          nullable: true
+        illustration_url:
+          type: string
+          nullable: true
+
+    CardSet:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        set_number:
+          type: string
+          example: ROTD-JP001
+        set_name:
+          type: string
+          example: RISE OF THE DUELIST
+        rarity:
+          type: string
+          example: SR
+
+    MonsterInfo:
+      type: object
+      properties:
+        kind:
+          type: string
+          example: ドラゴン族
+        attribute:
+          type: string
+          example: 闇
+        type:
+          type: array
+          items:
+            type: string
+          example: [効果, チューナー]
+        level:
+          type: integer
+          nullable: true
+        rank:
+          type: integer
+          nullable: true
+        atk:
+          type: integer
+          nullable: true
+        def:
+          type: integer
+          nullable: true
+        scale:
+          type: integer
+          nullable: true
+        link_arrows:
+          type: array
+          items:
+            type: string
+          nullable: true
+          example: [Top, Bottom-Left]
+        link_num:
+          type: integer
+          nullable: true
+        materials:
+          type: string
+          nullable: true
+
+    # ----------------------------------------------------------
+    # カード一覧レスポンス
+    # ----------------------------------------------------------
+    CardListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        konami_id:
+          type: integer
+        card_type:
+          type: string
+          enum: [monster, spell, trap]
+        property:
+          type: string
+          nullable: true
+        name:
+          type: string
+        ruby:
+          type: string
+          nullable: true
+        thumbnail:
+          description: 一覧表示用サムネイル（card_images の最初の1件）
+          allOf:
+            - $ref: '#/components/schemas/CardImage'
+          nullable: true
+        monster:
+          description: card_type が monster の場合のみ含む
+          allOf:
+            - $ref: '#/components/schemas/MonsterInfo'
+          nullable: true
+        total_count:
+          type: integer
+          description: ユーザの所持枚数合計（userId 未指定時は null）
+          nullable: true
+
+    CardListResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: 絞り込み後の総件数
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardListItem'
+
+    # ----------------------------------------------------------
+    # カード詳細レスポンス（ダイアログ用）
+    # ----------------------------------------------------------
+    UserCardCount:
+      type: object
+      description: ユーザ所持枚数（card_sets × イラスト単位）
+      properties:
+        card_set_id:
+          type: integer
+          format: int64
+          description: card_sets.id（型番＋レアリティを特定）
+        image_idx:
+          type: string
+        count:
+          type: integer
+
+    CardDetailResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        konami_id:
+          type: integer
+        card_type:
+          type: string
+          enum: [monster, spell, trap]
+        property:
+          type: string
+          nullable: true
+        name:
+          type: string
+        ruby:
+          type: string
+          nullable: true
+        text:
+          type: string
+          nullable: true
+        pendulum_text:
+          type: string
+          nullable: true
+        monster:
+          allOf:
+            - $ref: '#/components/schemas/MonsterInfo'
+          nullable: true
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardImage'
+        card_sets:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardSet'
+        user_counts:
+          type: array
+          description: userId 未指定時は空配列
+          items:
+            $ref: '#/components/schemas/UserCardCount'
+
+    # ----------------------------------------------------------
+    # 枚数一括更新
+    # ----------------------------------------------------------
+    CardCountBulkUpdateRequest:
+      type: object
+      required: [user_id, counts]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        counts:
+          type: array
+          description: 更新対象の所持枚数一覧（変更があった分だけ送る）
+          minItems: 1
+          items:
+            type: object
+            required: [card_set_id, image_idx, count]
+            properties:
+              card_set_id:
+                type: integer
+                format: int64
+                description: card_sets.id（型番＋レアリティを特定）
+              image_idx:
+                type: string
+                description: card_images.idx（イラスト違い識別）
+              count:
+                type: integer
+                minimum: 0
+
+    CardCountBulkUpdateResponse:
+      type: object
+      properties:
+        counts:
+          type: array
+          description: 更新後の所持枚数一覧
+          items:
+            $ref: '#/components/schemas/UserCardCount'
+
+    # ----------------------------------------------------------
+    # マイコレクション
+    # ----------------------------------------------------------
+    MyCollectionItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        konami_id:
+          type: integer
+        card_type:
+          type: string
+          enum: [monster, spell, trap]
+        name:
+          type: string
+        ruby:
+          type: string
+          nullable: true
+        thumbnail:
+          allOf:
+            - $ref: '#/components/schemas/CardImage'
+          nullable: true
+        monster:
+          allOf:
+            - $ref: '#/components/schemas/MonsterInfo'
+          nullable: true
+        total_count:
+          type: integer
+          description: 全セット・全イラストの所持枚数合計
+
+    MyCollectionResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyCollectionItem'
+
+    # ----------------------------------------------------------
+    # エラー
+    # ----------------------------------------------------------
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
