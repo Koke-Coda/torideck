@@ -2,7 +2,7 @@
   "name": "torideck",
   "private": true,
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": ["esbuild", "workerd"]
   },
   "scripts": {
     "dev": "pnpm --filter @torideck/web dev",
