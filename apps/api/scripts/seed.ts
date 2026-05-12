@@ -16,8 +16,8 @@ import yaml from 'js-yaml'
 import { createClient } from '@supabase/supabase-js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-// apps/api/scripts/ → apps/ → torideck/ → DawnbrandBots/yaml-yugi/
-const YAML_YUGI_PATH = path.resolve(__dirname, '../../../DawnbrandBots/yaml-yugi/data/cards')
+// apps/api/scripts/ → apps/api/ → apps/ → torideck/ → Koke-Coda/ → github.com/ → DawnbrandBots/yaml-yugi/
+const YAML_YUGI_PATH = path.resolve(__dirname, '../../../../../DawnbrandBots/yaml-yugi/data/cards')
 const LANG = 'ja'
 const BATCH_SIZE = 200
 
@@ -192,7 +192,7 @@ async function main() {
     // CARD_SETS (日本語セットのみ)
     const jaSets = raw.sets?.[LANG] ?? []
     for (const s of jaSets) {
-      for (const rarity of s.rarities) {
+      for (const rarity of s.rarities ?? []) {
         setRows.push({
           konami_id: raw.konami_id,
           set_number: s.set_number,
@@ -265,13 +265,15 @@ async function main() {
 
   // 4. CARD_SETS upsert
   console.log('Upserting card_sets...')
-  const setUpsertRows = setRows
-    .map(({ konami_id, ...rest }) => {
-      const cardId = idMap.get(konami_id as number)
-      if (!cardId) return null
-      return { card_id: cardId, ...rest }
-    })
-    .filter((r): r is NonNullable<typeof r> => r !== null)
+  const setUpsertMap = new Map<string, Record<string, unknown>>()
+  for (const { konami_id, ...rest } of setRows) {
+    const cardId = idMap.get(konami_id as number)
+    if (!cardId) continue
+    const row = { card_id: cardId, ...rest }
+    const key = `${cardId}:${rest.set_number}:${rest.rarity}`
+    setUpsertMap.set(key, row)
+  }
+  const setUpsertRows = Array.from(setUpsertMap.values())
 
   await upsertBatch('card_sets', setUpsertRows, 'card_id,set_number,rarity')
 

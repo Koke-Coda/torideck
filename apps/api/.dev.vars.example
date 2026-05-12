@@ -6,7 +6,10 @@
 SUPABASE_URL=http://127.0.0.1:54321
 
 # supabase start 実行後に表示される service_role key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+# ⚠️ supabase CLI 2.98+ は "sb_secret_*" 形式を表示するが supabase-js は JWT が必要。
+# Kong config から取得する方法:
+#   docker exec supabase_kong_<project> cat /home/kong/kong.yml | grep -o 'eyJ[^'"'"']*service_role[^'"'"']*'
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-jwt-here
 
 # Web アプリの開発サーバー URL（CORS 許可対象）
 CORS_ORIGIN=http://localhost:5173

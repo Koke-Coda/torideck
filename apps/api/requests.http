@@ -1,0 +1,171 @@
+# Torideck API — リクエストサンプル
+#
+# VS Code: REST Client 拡張 (humao.rest-client) で実行
+# JetBrains: IDE 組み込みの HTTP Client で実行
+#
+# 使い方:
+#   1. supabase start && pnpm api でローカルサーバーを起動
+#   2. @userId に実際の UUID をセット（ユーザ登録後に取得）
+#   3. 各リクエストの "Send Request" をクリック
+
+@baseUrl = http://localhost:8787
+@contentType = application/json
+
+# 動作確認後にここを更新してください
+@userId = 00000000-0000-0000-0000-000000000000
+@cardId = 1
+
+
+# ============================================================
+# ユーザ管理
+# ============================================================
+
+### ユーザ登録
+# @name createUser
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "デュエリスト太郎"
+}
+
+###
+
+### ユーザ情報取得
+GET {{baseUrl}}/users/{{userId}}
+
+###
+
+
+# ============================================================
+# カード一覧
+# ============================================================
+
+### カード一覧（フィルタなし）
+GET {{baseUrl}}/screens/card-list?limit=10&offset=0
+
+###
+
+### カード一覧（userId 付き：所持枚数合計を含む）
+GET {{baseUrl}}/screens/card-list?userId={{userId}}&limit=10
+
+###
+
+### カード一覧（モンスターのみ）
+GET {{baseUrl}}/screens/card-list?card_type=monster&limit=10
+
+###
+
+### カード一覧（属性フィルタ）
+GET {{baseUrl}}/screens/card-list?card_type=monster&attribute=DARK&limit=10
+
+###
+
+### カード一覧（種族フィルタ）
+GET {{baseUrl}}/screens/card-list?card_type=monster&kind=Dragon&limit=10
+
+###
+
+### カード一覧（キーワード検索）
+GET {{baseUrl}}/screens/card-list?keyword=ドラゴン&limit=10
+
+###
+
+### カード一覧（魔法カード）
+GET {{baseUrl}}/screens/card-list?card_type=spell&limit=10
+
+###
+
+### カード一覧（罠カード）
+GET {{baseUrl}}/screens/card-list?card_type=trap&limit=10
+
+###
+
+
+# ============================================================
+# カード詳細
+# ============================================================
+
+### カード詳細（userId なし）
+GET {{baseUrl}}/screens/card-list/{{cardId}}
+
+###
+
+### カード詳細（userId 付き：所持枚数を含む）
+GET {{baseUrl}}/screens/card-list/{{cardId}}?userId={{userId}}
+
+###
+
+
+# ============================================================
+# 所持枚数更新
+# ============================================================
+
+### 所持枚数一括更新
+PUT {{baseUrl}}/screens/card-list/counts
+Content-Type: {{contentType}}
+
+{
+  "user_id": "{{userId}}",
+  "counts": [
+    {
+      "card_set_id": 1,
+      "image_idx": "1",
+      "count": 3
+    },
+    {
+      "card_set_id": 2,
+      "image_idx": "1",
+      "count": 0
+    }
+  ]
+}
+
+###
+
+### 所持枚数を 0 にリセット（1件）
+PUT {{baseUrl}}/screens/card-list/counts
+Content-Type: {{contentType}}
+
+{
+  "user_id": "{{userId}}",
+  "counts": [
+    {
+      "card_set_id": 1,
+      "image_idx": "1",
+      "count": 0
+    }
+  ]
+}
+
+###
+
+
+# ============================================================
+# マイコレクション
+# ============================================================
+
+### マイコレクション（所持枚数 1 以上のカード一覧）
+GET {{baseUrl}}/screens/my-collection?userId={{userId}}&limit=10
+
+###
+
+### マイコレクション（モンスターのみ）
+GET {{baseUrl}}/screens/my-collection?userId={{userId}}&card_type=monster&limit=10
+
+###
+
+### マイコレクション（キーワード絞り込み）
+GET {{baseUrl}}/screens/my-collection?userId={{userId}}&keyword=ドラゴン&limit=10
+
+###
+
+
+# ============================================================
+# OpenAPI ドキュメント
+# ============================================================
+
+### OpenAPI JSON 取得
+GET {{baseUrl}}/openapi.json
+
+###
