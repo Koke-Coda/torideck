@@ -192,7 +192,7 @@ async function main() {
     // CARD_SETS (日本語セットのみ)
     const jaSets = raw.sets?.[LANG] ?? []
     for (const s of jaSets) {
-      for (const rarity of s.rarities) {
+      for (const rarity of s.rarities ?? []) {
         setRows.push({
           konami_id: raw.konami_id,
           set_number: s.set_number,
