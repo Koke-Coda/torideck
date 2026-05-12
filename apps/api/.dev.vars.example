@@ -1,0 +1,12 @@
+# ローカル開発用シークレット
+# このファイルをコピーして .dev.vars を作成し、実際の値を記入してください
+# .dev.vars は gitignore 済みのため、リポジトリにコミットされません
+
+# supabase start 実行後に表示される API URL
+SUPABASE_URL=http://127.0.0.1:54321
+
+# supabase start 実行後に表示される service_role key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+
+# Web アプリの開発サーバー URL（CORS 許可対象）
+CORS_ORIGIN=http://localhost:5173
