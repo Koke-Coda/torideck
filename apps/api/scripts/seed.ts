@@ -16,8 +16,8 @@ import yaml from 'js-yaml'
 import { createClient } from '@supabase/supabase-js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-// apps/api/scripts/ → apps/ → torideck/ → DawnbrandBots/yaml-yugi/
-const YAML_YUGI_PATH = path.resolve(__dirname, '../../../DawnbrandBots/yaml-yugi/data/cards')
+// apps/api/scripts/ → apps/api/ → apps/ → torideck/ → Koke-Coda/ → github.com/ → DawnbrandBots/yaml-yugi/
+const YAML_YUGI_PATH = path.resolve(__dirname, '../../../../../DawnbrandBots/yaml-yugi/data/cards')
 const LANG = 'ja'
 const BATCH_SIZE = 200
 
