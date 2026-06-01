@@ -1,0 +1,186 @@
+-- ============================================================
+-- 遊戯王カード DB — Initial Schema
+-- ============================================================
+
+-- ----------------------------------------------------------
+-- CARDS: カードマスタ（モンスター / 魔法 / 罠 共通）
+-- ----------------------------------------------------------
+CREATE TABLE cards (
+    id                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    konami_id         INTEGER NOT NULL UNIQUE,
+    card_type         TEXT NOT NULL CHECK (card_type IN ('monster', 'spell', 'trap')),
+    property          TEXT,
+    name              TEXT NOT NULL,
+    ruby              TEXT,
+    text              TEXT,
+    pendulum_text     TEXT,
+    yugipedia_page_id INTEGER,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE  cards                    IS 'カードマスタ';
+COMMENT ON COLUMN cards.konami_id          IS 'KONAMI公式カードID';
+COMMENT ON COLUMN cards.card_type          IS 'カード種別: monster / spell / trap';
+COMMENT ON COLUMN cards.property           IS '魔法・罠のプロパティ（通常, 速攻, 永続, 装備, フィールド, 儀式, カウンター）';
+COMMENT ON COLUMN cards.name               IS 'カード名';
+COMMENT ON COLUMN cards.ruby               IS 'カード名ルビ';
+COMMENT ON COLUMN cards.text               IS 'カードテキスト（効果説明）';
+COMMENT ON COLUMN cards.pendulum_text      IS 'ペンデュラム効果テキスト';
+COMMENT ON COLUMN cards.yugipedia_page_id  IS 'Yugipedia のページID';
+
+CREATE INDEX idx_cards_card_type ON cards (card_type);
+CREATE INDEX idx_cards_name      ON cards (name);
+
+-- ----------------------------------------------------------
+-- MONSTERS: モンスター固有情報（card_type = 'monster' のみ）
+-- ----------------------------------------------------------
+CREATE TABLE monsters (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    card_id     BIGINT NOT NULL UNIQUE REFERENCES cards (id) ON DELETE CASCADE,
+    kind        TEXT NOT NULL,
+    attribute   TEXT NOT NULL,
+    type        JSONB,
+    level       INTEGER,
+    rank        INTEGER,
+    atk         INTEGER,
+    def         INTEGER,
+    scale       INTEGER,
+    link_arrows JSONB,
+    link_num    INTEGER,
+    materials   TEXT
+);
+
+COMMENT ON TABLE  monsters             IS 'モンスター固有情報（CARDS と 1:0..1）';
+COMMENT ON COLUMN monsters.card_id     IS 'cards.id への外部キー（UNIQUE で 1:0..1 を保証）';
+COMMENT ON COLUMN monsters.kind        IS '種族（魔法使い族, ドラゴン族 等）';
+COMMENT ON COLUMN monsters.attribute   IS '属性（光, 闇, 火, 水, 地, 風, 神）';
+COMMENT ON COLUMN monsters.type        IS '分類（召喚方法・通常/効果・チューナー/トゥーン 等）の配列';
+COMMENT ON COLUMN monsters.level       IS 'レベル（通常・効果モンスター）';
+COMMENT ON COLUMN monsters.rank        IS 'ランク（エクシーズモンスター）';
+COMMENT ON COLUMN monsters.atk         IS '攻撃力（? の場合は NULL）';
+COMMENT ON COLUMN monsters.def         IS '守備力（? の場合は NULL / リンクは NULL）';
+COMMENT ON COLUMN monsters.scale       IS 'ペンデュラムスケール値';
+COMMENT ON COLUMN monsters.link_arrows IS 'リンクマーカー方向の配列 例: ["Top","Bottom-Left"]';
+COMMENT ON COLUMN monsters.link_num    IS 'リンク値 例: 2';
+COMMENT ON COLUMN monsters.materials   IS '召喚条件・素材テキスト';
+
+-- ----------------------------------------------------------
+-- CARD_IMAGES: カード画像
+-- ----------------------------------------------------------
+CREATE TABLE card_images (
+    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    card_id          BIGINT NOT NULL REFERENCES cards (id) ON DELETE CASCADE,
+    idx              TEXT NOT NULL,
+    image_url        TEXT,
+    illustration_url TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (card_id, idx)
+);
+
+COMMENT ON TABLE  card_images                  IS 'カード画像（1カードに複数アート違い対応）';
+COMMENT ON COLUMN card_images.idx              IS '画像インデックス（同一カードの複数バージョン識別用）';
+COMMENT ON COLUMN card_images.image_url        IS 'カード全体の画像URL';
+COMMENT ON COLUMN card_images.illustration_url IS 'イラスト部分の画像URL';
+
+CREATE INDEX idx_card_images_card_id ON card_images (card_id);
+
+-- ----------------------------------------------------------
+-- CARD_SETS: 収録商品情報
+-- ----------------------------------------------------------
+CREATE TABLE card_sets (
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    card_id    BIGINT NOT NULL REFERENCES cards (id) ON DELETE CASCADE,
+    set_number TEXT NOT NULL,
+    set_name   TEXT NOT NULL,
+    rarity     TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- card_id を含めることで、同一型番+レアリティが別カードに存在できる
+    UNIQUE (card_id, set_number, rarity)
+);
+
+COMMENT ON TABLE  card_sets            IS '収録商品・レアリティ情報（1レコード = 1型番 × 1レアリティ）';
+COMMENT ON COLUMN card_sets.set_number IS '型番（例: ROTD-JP001）';
+COMMENT ON COLUMN card_sets.set_name   IS '商品名（例: RISE OF THE DUELIST）';
+COMMENT ON COLUMN card_sets.rarity     IS 'レアリティ（例: SR, UR, CR, ESR）';
+
+CREATE INDEX idx_card_sets_card_id    ON card_sets (card_id);
+CREATE INDEX idx_card_sets_set_number ON card_sets (set_number);
+
+-- ----------------------------------------------------------
+-- USERS: ユーザ情報
+-- ----------------------------------------------------------
+CREATE TABLE users (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name       TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE  users      IS 'ユーザ情報';
+COMMENT ON COLUMN users.name IS 'ユーザ名';
+
+-- ----------------------------------------------------------
+-- USER_CARD_COUNTS: ユーザの所持枚数（セット × レアリティ × イラスト単位）
+-- ----------------------------------------------------------
+CREATE TABLE user_card_counts (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id     UUID    NOT NULL REFERENCES users     (id) ON DELETE CASCADE,
+    card_set_id BIGINT  NOT NULL REFERENCES card_sets (id) ON DELETE CASCADE,
+    image_idx   TEXT    NOT NULL,
+    count       INTEGER NOT NULL DEFAULT 0 CHECK (count >= 0),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, card_set_id, image_idx)
+);
+
+COMMENT ON TABLE  user_card_counts             IS 'ユーザの所持枚数（card_sets × イラスト違い単位）';
+COMMENT ON COLUMN user_card_counts.card_set_id IS 'card_sets.id（型番＋レアリティを特定）';
+COMMENT ON COLUMN user_card_counts.image_idx   IS 'イラスト違いインデックス（card_images.idx と対応）';
+COMMENT ON COLUMN user_card_counts.count       IS '所持枚数（0以上）';
+
+CREATE INDEX idx_user_card_counts_user_id     ON user_card_counts (user_id);
+CREATE INDEX idx_user_card_counts_card_set_id ON user_card_counts (card_set_id);
+
+-- ----------------------------------------------------------
+-- updated_at 自動更新トリガー
+-- ----------------------------------------------------------
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_cards_updated_at
+    BEFORE UPDATE ON cards
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_card_images_updated_at
+    BEFORE UPDATE ON card_images
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_card_sets_updated_at
+    BEFORE UPDATE ON card_sets
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_user_card_counts_updated_at
+    BEFORE UPDATE ON user_card_counts
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ----------------------------------------------------------
+-- Row Level Security（必要に応じて有効化）
+-- ----------------------------------------------------------
+-- ALTER TABLE cards             ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE monsters          ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE card_images       ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE card_sets         ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE users             ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE user_card_counts  ENABLE ROW LEVEL SECURITY;
