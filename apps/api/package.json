@@ -4,12 +4,19 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "hono": "^4.12.14"
+    "@hono/zod-openapi": "^1.4.0",
+    "@supabase/supabase-js": "^2.104.0",
+    "hono": "^4.12.14",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "js-yaml": "^4.1.1",
+    "tsx": "^4.21.0",
     "wrangler": "^4.4.0"
   }
 }
