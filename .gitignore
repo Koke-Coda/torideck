@@ -4,6 +4,14 @@
 # Cloudflare Workers
 .wrangler/
 
+# Supabase generated / local state
+apps/api/src/db/database.types.ts
+supabase/.branches/
+supabase/snippets/
+
+# VS Code workspace
+*.code-workspace
+
 # Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,react,node
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,react,node
 
